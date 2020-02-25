@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="bbs">
+
+	<resultMap type="mybatis.vo.BbsVO" id="map1">
+		<id property="b_idx" column="b_idx"/>
+		<collection property="c_list" ofType="mybatis.vo.CommVO"
+			column="b_idx" select="commList"/>
+	</resultMap>
+
+	<!-- 특정 원들의 기본키를 조건으로 하여
+		해당 댓글들을 조회하는 기능 -->
+	<select id="commList" resultType="mybatis.vo.CommVO"
+	parameterType="String">
+		SELECT * FROM comment_t
+		WHERE b_idx = #{b_idx}
+	</select>
+
+
+	<!-- 사용자가 원들의 목록을 만들기 위해 호출하는 기능
+		(결과는 BbsVO안에 여러 개의 CommVO를 가지는
+		복합적인 결과를 만들어야 한다.) -->
+	<select id="bbsList" parameterType="java.util.Map"
+	resultMap="map1">
+		SELECT * FROM(
+			SELECT rownum r_num, a.* FROM(
+				SELECT * FROM bbs_t
+				WHERE status = 0
+				ORDER BY b_idx DESC
+			) a
+		) WHERE r_num BETWEEN #{begin} AND #{end}
+	
+	</select>
+
+
+	<!-- 페이징 기법에 사용될 전체페이지 수를 구하기 위해서는
+		전체 게시물의 수를 알아야 한다. -->
+	<select id="totalCount" resultType="int">
+		SELECT COUNT(*) FROM bbs_t
+		WHERE status = 0
+	</select>
+	
+	
+	<!-- 원글 저장 -->
+	<insert id="add" parameterType="java.util.Map">
+		INSERT INTO bbs_t(b_idx, subject, writer, content,
+			pwd, write_date, file_name, ori_name, ip, hit, status)
+		VALUES(bbs_t_seq.NEXTVAL, #{title},#{writer},#{content},'1111',
+			 sysdate, #{fname}, #{oname}, #{ip}, 0, 0)
+	</insert>
+	
+	<!-- 보기 기능 :
+		기본키(b_idx)를 인자로 받아 조건으로 부여하여
+		원글을 검색한다. -->
+	<select id="getBbs" parameterType="String" 
+	resultMap="map1">
+		SELECT * FROM bbs_t
+		WHERE b_idx = #{no}
+	</select>
+	
+	
+	<!-- 댓글 저장 -->
+	<insert id="add_ans" parameterType="mybatis.vo.CommVO">
+		INSERT INTO comment_t(c_idx, writer, content, pwd,
+			write_date,  b_idx)
+		VALUES(comment_t_seq.NEXTVAL, #{writer}, #{content},
+			#{pwd}, sysdate, #{b_idx})
+	</insert>
+	
+	<!-- 원글 수정 -->
+	<update id="edit" parameterType="java.util.Map">
+		UPDATE bbs_t
+		SET
+			subject = #{subject},
+			content = #{content}
+			<if test="fname != null">
+				,file_name = #{fname}
+				,ori_name = #{oname}
+			</if>
+		WHERE b_idx = #{b_idx} AND pwd = #{pwd}
+	</update>
+	
+	<!-- 원글 삭제 -->
+	<update id="del" parameterType="java.util.Map">
+		UPDATE bbs_t
+		SET
+			status = 1
+		WHERE b_idx = #{no} AND pwd = #{pwd}
+	</update>
+	
+	<!-- 조회수 증가 -->
+	<update id="hit" parameterType="String">
+		UPDATE bbs_t
+		SET hit = hit+1
+		WHERE b_idx = #{no}
+	</update>
+
+</mapper>
+
+
+
+
+
+
